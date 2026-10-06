@@ -33,4 +33,19 @@ class T(unittest.TestCase):
             sc = score(fs, load_truth(repo(n)))
             self.assertEqual(sc["precision"], 1.0); self.assertEqual(sc["recall"], 1.0)
 
+
+from docdrift.nemotron import NemotronModel
+class TestClient(unittest.TestCase):
+    def fake(self, url, headers, body):
+        self.seen = (headers, body)
+        return {"choices": [{"message": {"content": "x\n```python\nprint(2)\n```"}}], "usage": {"prompt_tokens": 5, "completion_tokens": 3}}
+    def test_parses_fix_and_counts_tokens(self):
+        m = NemotronModel("model-x", api_key="k", transport=self.fake)
+        self.assertEqual(m.propose_fix("print(1)", "err", ""), "print(2)\n")
+        self.assertEqual((m.prompt_tokens, m.completion_tokens), (5, 3))
+        self.assertEqual(self.seen[1]["model"], "model-x")
+    def test_no_key_fails_loudly(self):
+        import os; os.environ.pop("NEBIUS_API_KEY", None)
+        with self.assertRaises(RuntimeError): NemotronModel("m", transport=self.fake).diagnose("a", "b", "")
+
 if __name__ == "__main__": unittest.main()

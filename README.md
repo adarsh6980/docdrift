@@ -4,7 +4,8 @@ Finds README/doc code snippets that no longer match the repo's code or library v
 
 ## Status, plainly
 - Working locally: snippet extractor, pipeline, scoring, 3 seeded fixture repos, deterministic tests.
-- MOCKED: the model (`mock_model.py`) and the runner (`LocalFixtureRunner`, trusted fixtures only, not a sandbox).
+- MOCKED: the default model (`mock_model.py`) and runner (`LocalFixtureRunner`, trusted fixtures only, not a sandbox).
+- WRITTEN BUT UNVERIFIED (never run live): `nemotron.py` (Token Factory chat client) and `sandbox_runner.py` (ConTree sandbox). Tested only with a fake transport.
 - NOT built: Nemotron integration, Token Factory Sandboxes, Tavily lookup, GitHub Action, UI, real-repo benchmark, licence file (add MIT/Apache before publishing).
 
 ## Run
