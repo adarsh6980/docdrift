@@ -34,15 +34,19 @@ def _doc_paths(repo_dir, doc_globs):
                 seen.append(p)
     return seen
 
-def scan_repo(repo_dir, runner, model, doc_globs=("README.md", "docs/*.md")):
+def scan_repo(repo_dir, runner, model, doc_globs=("README.md", "README.rst", "docs/*.md", "docs/*.rst")):
     findings = []
     ctx = repo_context(repo_dir)
     for path in _doc_paths(repo_dir, doc_globs):
         rel = os.path.relpath(path, repo_dir)
         with open(path, errors="replace") as f:
             text = f.read()
-        for s in extract_snippets(rel, text):
-            r = runner.run(s.code, repo_dir)
+        snippets = extract_snippets(rel, text)
+        if hasattr(runner, "run_file"):
+            results = runner.run_file([s.code for s in snippets], repo_dir)
+        else:
+            results = [runner.run(s.code, repo_dir) for s in snippets]
+        for s, r in zip(snippets, results):
             if r.ok:
                 findings.append(Finding(rel, s.index, s.line, "ok"))
                 continue

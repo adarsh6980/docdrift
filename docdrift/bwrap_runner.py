@@ -40,7 +40,7 @@ class BwrapRunner:
         argv = [
             "bwrap", "--unshare-all", "--die-with-parent", "--clearenv",
             "--setenv", "PATH", "/usr/bin:/bin",
-            "--setenv", "PYTHONPATH", "/repo/lib",
+            "--setenv", "PYTHONPATH", "/repo/lib:/repo/src:/repo",
             "--setenv", "PYTHONHASHSEED", "0",
             "--ro-bind", "/usr", "/usr", "--ro-bind", "/bin", "/bin",
             "--ro-bind", "/lib", "/lib", "--ro-bind", "/lib64", "/lib64",
@@ -56,3 +56,20 @@ class BwrapRunner:
             return RunResult(False, "", f"timeout after {self.timeout}s")
         finally:
             shutil.rmtree(workdir, ignore_errors=True)
+
+    def run_file(self, codes, repo_dir):
+        from .session import run_session
+        repo_abs = os.path.abspath(repo_dir)
+        def argv_for(workdir):
+            return [
+                "bwrap", "--unshare-all", "--die-with-parent", "--clearenv",
+                "--setenv", "PATH", "/usr/bin:/bin",
+                "--setenv", "PYTHONPATH", "/repo/lib:/repo/src:/repo",
+                "--setenv", "PYTHONHASHSEED", "0",
+                "--ro-bind", "/usr", "/usr", "--ro-bind", "/bin", "/bin",
+                "--ro-bind", "/lib", "/lib", "--ro-bind", "/lib64", "/lib64",
+                "--ro-bind", repo_abs, "/repo",
+                "--bind", workdir, "/work", "--chdir", "/work",
+                "--", "python3", "/work/driver.py", "/work/snippets.json",
+            ]
+        return run_session(codes, repo_dir, self.timeout, argv_for)

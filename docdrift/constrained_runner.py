@@ -32,7 +32,7 @@ class ConstrainedSubprocessRunner:
         workdir = tempfile.mkdtemp(prefix="docdrift-sub-")
         env = {
             "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
-            "PYTHONPATH": os.path.abspath(os.path.join(repo_dir, "lib")),
+            "PYTHONPATH": os.pathsep.join(os.path.abspath(os.path.join(repo_dir, d)) for d in ("lib", "src", "")),
             "HOME": workdir,
             "PYTHONHASHSEED": "0",
         }
@@ -50,3 +50,14 @@ class ConstrainedSubprocessRunner:
             return RunResult(False, "", f"timeout after {self.timeout}s")
         finally:
             shutil.rmtree(workdir, ignore_errors=True)
+
+    def run_file(self, codes, repo_dir):
+        from .session import run_session
+        env = {
+            "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+            "PYTHONPATH": os.pathsep.join(os.path.abspath(os.path.join(repo_dir, d)) for d in ("lib", "src", "")),
+            "PYTHONHASHSEED": "0",
+        }
+        def argv_for(workdir):
+            return [sys.executable, os.path.join(workdir, "driver.py"), os.path.join(workdir, "snippets.json")]
+        return run_session(codes, repo_dir, self.timeout, argv_for, env=env)

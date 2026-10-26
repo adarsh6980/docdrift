@@ -18,7 +18,7 @@ from .bwrap_runner import BwrapRunner
 from .mock_model import MockModel
 
 
-def run_benchmark(repo_dirs, model, runner=None, doc_globs=("README.md", "docs/*.md")):
+def run_benchmark(repo_dirs, model, runner=None, doc_globs=("README.md", "README.rst", "docs/*.md", "docs/*.rst")):
     runner = runner or BwrapRunner()
     repos, totals = [], {"snippets": 0, "ok": 0, "stale_fixed": 0, "stale_unfixed": 0}
     for d in repo_dirs:

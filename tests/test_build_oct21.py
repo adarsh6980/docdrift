@@ -109,3 +109,55 @@ class TestDemoPage(unittest.TestCase):
         self.assertIn("print(1)", out)
         self.assertIn("prompt tokens=100", out)
         self.assertIn("github.com/adarsh6980/docdrift", out)
+
+from docdrift.extract import extract_snippets
+class TestRstExtract(unittest.TestCase):
+    def test_rst_code_block(self):
+        text = "Intro\n\n.. code-block:: python\n\n   print(1)\n   print(2)\n\nOutro no indent\n"
+        s = extract_snippets("README.rst", text)
+        self.assertEqual(len(s), 1)
+        self.assertIn("print(1)", s[0].code)
+        self.assertNotIn("Outro", s[0].code)
+    def test_mixed_md_and_rst(self):
+        text = ".. code:: python\n\n   a = 1\n\n```python\nb = 2\n```\n"
+        s = extract_snippets("README.rst", text)
+        self.assertEqual(len(s), 2)
+        self.assertIn("a = 1", s[0].code)   # sorted by position
+        self.assertIn("b = 2", s[1].code)
+    def test_rst_other_lang_skipped(self):
+        s = extract_snippets("r.rst", ".. code-block:: javascript\n\n   x()\n")
+        self.assertEqual(s, [])
+
+class TestNormalize(unittest.TestCase):
+    def test_dedent_deep_rst(self):
+        text = ".. code-block:: python\n\n      p.defnoun(1)\n      p.defnoun(2)\n"
+        s = extract_snippets("r.rst", text)
+        self.assertEqual(s[0].code, "p.defnoun(1)\np.defnoun(2)\n")
+    def test_doctest_conversion(self):
+        text = "```python\n>>> rows[0]\n'x'\n>>> print(1)\n1\n```\n"
+        s = extract_snippets("r.md", text)
+        self.assertEqual(s[0].code, "rows[0]\nprint(1)\n")
+
+class TestSessionState(unittest.TestCase):
+    def test_state_carries_across_snippets(self):
+        r = BwrapRunner()
+        res = r.run_file(["rows = [1, 2, 3]\n", "print(rows[0])\n"], repo("ok_repo"))
+        self.assertEqual(len(res), 2)
+        self.assertTrue(res[0].ok, res[0].stderr)
+        self.assertTrue(res[1].ok, res[1].stderr)
+        self.assertIn("1", res[1].stdout)
+    def test_late_failure_keeps_earlier_ok(self):
+        res = BwrapRunner().run_file(["x = 1\n", "import nonexistent_xyz\n"], repo("ok_repo"))
+        self.assertTrue(res[0].ok); self.assertFalse(res[1].ok)
+
+class TestSessionEnvScrub(unittest.TestCase):
+    def test_session_env_is_scrubbed(self):
+        os.environ["NEBIUS_API_KEY"] = "secret-marker-456"
+        try:
+            res = ConstrainedSubprocessRunner().run_file(
+                ["import os\nprint(os.environ.get('NEBIUS_API_KEY'))\n"], repo("ok_repo"))
+        finally:
+            del os.environ["NEBIUS_API_KEY"]
+        self.assertTrue(res[0].ok, res[0].stderr)
+        self.assertEqual(res[0].stdout.strip(), "None")
+        self.assertNotIn("secret-marker-456", res[0].stdout)
