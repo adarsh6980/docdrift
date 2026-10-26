@@ -16,21 +16,53 @@ from .pipeline import scan_repo
 from .benchmark import score, load_truth
 from .bwrap_runner import BwrapRunner
 from .mock_model import MockModel
+from .envclass import is_environment_failure
+
+
+def _load_env(repo_dir):
+    path = os.path.join(repo_dir, "docdrift-env.json")
+    if not os.path.exists(path):
+        return {}
+    with open(path) as f:
+        return json.load(f)
 
 
 def run_benchmark(repo_dirs, model, runner=None, doc_globs=("README.md", "README.rst", "docs/*.md", "docs/*.rst")):
-    runner = runner or BwrapRunner()
-    repos, totals = [], {"snippets": 0, "ok": 0, "stale_fixed": 0, "stale_unfixed": 0}
+    default_runner = runner or BwrapRunner()
+    repos = []
+    totals = {"snippets": 0, "ok": 0, "stale_fixed": 0, "stale_unfixed": 0,
+              "environment_failures": 0}
     for d in repo_dirs:
-        findings = scan_repo(d, runner, model, doc_globs=doc_globs)
-        entry = {"repo": os.path.abspath(d), "findings": [f.__dict__ for f in findings]}
+        env = _load_env(d)
+        repo_runner = default_runner
+        venv = env.get("venv")
+        if venv:
+            from .prepare_env import site_packages
+            repo_runner = BwrapRunner(env_site_packages=site_packages(venv))
+            entry_venv = venv
+        else:
+            entry_venv = None
+        findings = scan_repo(d, repo_runner, model, doc_globs=doc_globs)
+        evaluated, env_failed = [], []
+        for f in findings:
+            if f.status != "ok" and is_environment_failure(f.error, d):
+                env_failed.append(f)
+            else:
+                evaluated.append(f)
+        entry = {"repo": os.path.abspath(d), "venv": entry_venv,
+                 "evaluated": [f.__dict__ for f in evaluated],
+                 "environment_failures": [
+                     {"file": f.file, "line": f.line, "index": f.index,
+                      "missing_module": f.error.strip().splitlines()[-1] if f.error.strip() else ""}
+                     for f in env_failed]}
         truth_path = os.path.join(d, "truth.json")
         if os.path.exists(truth_path):
-            entry["score"] = score(findings, load_truth(d))
+            entry["score"] = score(evaluated, load_truth(d))
         repos.append(entry)
-        for f in findings:
+        for f in evaluated:
             totals["snippets"] += 1
             totals[f.status] += 1
+        totals["environment_failures"] += len(env_failed)
     report = {"repos": repos, "totals": totals,
               "model_tokens": {"prompt": getattr(model, "prompt_tokens", None),
                                "completion": getattr(model, "completion_tokens", None),

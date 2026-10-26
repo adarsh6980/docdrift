@@ -28,23 +28,35 @@ def _limits(cpu_seconds, mem_bytes):
 
 
 class BwrapRunner:
-    def __init__(self, timeout=15, cpu_seconds=15, mem_mb=768):
+    def __init__(self, timeout=15, cpu_seconds=15, mem_mb=768, env_site_packages=None):
         self.timeout, self.cpu_seconds, self.mem_bytes = timeout, cpu_seconds, mem_mb * 1024 * 1024
+        # Optional prepared dependency venv (see prepare_env.py): mounted
+        # READ-ONLY so offline snippets can import installed deps. Never
+        # writable, never network-enabled inside a snippet run.
+        self.env_site_packages = env_site_packages
         if shutil.which("bwrap") is None:
             raise RuntimeError("bwrap not found; cannot isolate untrusted snippets")
+
+    def _env_args(self):
+        if not self.env_site_packages:
+            return [], "/repo/lib:/repo/src:/repo"
+        return (["--ro-bind", self.env_site_packages, "/env-lib"],
+                "/env-lib:/repo/lib:/repo/src:/repo")
 
     def run(self, code, repo_dir):
         workdir = tempfile.mkdtemp(prefix="docdrift-bwrap-")
         with open(os.path.join(workdir, "snippet.py"), "w") as f:
             f.write(code)
+        env_binds, pythonpath = self._env_args()
         argv = [
             "bwrap", "--unshare-all", "--die-with-parent", "--clearenv",
             "--setenv", "PATH", "/usr/bin:/bin",
-            "--setenv", "PYTHONPATH", "/repo/lib:/repo/src:/repo",
+            "--setenv", "PYTHONPATH", pythonpath,
             "--setenv", "PYTHONHASHSEED", "0",
             "--ro-bind", "/usr", "/usr", "--ro-bind", "/bin", "/bin",
             "--ro-bind", "/lib", "/lib", "--ro-bind", "/lib64", "/lib64",
             "--ro-bind", os.path.abspath(repo_dir), "/repo",
+        ] + env_binds + [
             "--bind", workdir, "/work", "--chdir", "/work",
             "--", "python3", "/work/snippet.py",
         ]
@@ -60,15 +72,17 @@ class BwrapRunner:
     def run_file(self, codes, repo_dir):
         from .session import run_session
         repo_abs = os.path.abspath(repo_dir)
+        env_binds, pythonpath = self._env_args()
         def argv_for(workdir):
             return [
                 "bwrap", "--unshare-all", "--die-with-parent", "--clearenv",
                 "--setenv", "PATH", "/usr/bin:/bin",
-                "--setenv", "PYTHONPATH", "/repo/lib:/repo/src:/repo",
+                "--setenv", "PYTHONPATH", pythonpath,
                 "--setenv", "PYTHONHASHSEED", "0",
                 "--ro-bind", "/usr", "/usr", "--ro-bind", "/bin", "/bin",
                 "--ro-bind", "/lib", "/lib", "--ro-bind", "/lib64", "/lib64",
                 "--ro-bind", repo_abs, "/repo",
+            ] + env_binds + [
                 "--bind", workdir, "/work", "--chdir", "/work",
                 "--", "python3", "/work/driver.py", "/work/snippets.json",
             ]
