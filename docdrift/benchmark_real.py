@@ -45,16 +45,15 @@ def run_benchmark(repo_dirs, model, runner=None, doc_globs=("README.md", "README
         else:
             entry_venv = None
         findings = scan_repo(d, repo_runner, model, doc_globs=doc_globs)
-        codes_by_file = {}
+        repo_codes, key_to_pos = [], {}
         for path in _doc_paths(d, doc_globs):
             rel = os.path.relpath(path, d)
             with open(path, errors="replace") as fh:
-                codes_by_file[rel] = [sn.code for sn in extract_snippets(rel, fh.read())]
+                for sn in extract_snippets(rel, fh.read()):
+                    key_to_pos[(rel, sn.index)] = len(repo_codes)
+                    repo_codes.append(sn.code)
         evaluated, env_failed, svc_failed, casc_failed = [], [], [], []
-        failed_indexes = {}
-        for f in findings:
-            if f.status != "ok":
-                failed_indexes.setdefault(f.file, []).append(f.index)
+        failed_positions = {key_to_pos.get((f.file, f.index)) for f in findings if f.status != "ok"}
         for f in findings:
             if f.status == "ok":
                 evaluated.append(f)
@@ -62,8 +61,9 @@ def run_benchmark(repo_dirs, model, runner=None, doc_globs=("README.md", "README
                 env_failed.append(f)
             elif is_service_failure(f.error):
                 svc_failed.append(f)
-            elif is_cascade_failure(f.error, codes_by_file.get(f.file, []),
-                                    [i for i in failed_indexes.get(f.file, []) if i < f.index]):
+            elif is_cascade_failure(f.error, repo_codes,
+                                    [i for i in failed_positions
+                                     if i is not None and i < key_to_pos.get((f.file, f.index), 0)]):
                 casc_failed.append(f)
             else:
                 evaluated.append(f)

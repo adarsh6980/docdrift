@@ -37,24 +37,28 @@ def _doc_paths(repo_dir, doc_globs):
 def scan_repo(repo_dir, runner, model, doc_globs=("README.md", "README.rst", "docs/*.md", "docs/*.rst")):
     findings = []
     ctx = repo_context(repo_dir)
+    # Repo-wide session in doc-reading order (README first): doc files routinely
+    # state imports once and reuse them across the whole doc set, so one shared
+    # namespace for the repo's snippets matches how the docs are meant to be read.
+    all_snippets = []
     for path in _doc_paths(repo_dir, doc_globs):
         rel = os.path.relpath(path, repo_dir)
         with open(path, errors="replace") as f:
             text = f.read()
-        snippets = extract_snippets(rel, text)
-        if hasattr(runner, "run_file"):
-            results = runner.run_file([s.code for s in snippets], repo_dir)
-        else:
-            results = [runner.run(s.code, repo_dir) for s in snippets]
-        for s, r in zip(snippets, results):
-            if r.ok:
-                findings.append(Finding(rel, s.index, s.line, "ok"))
-                continue
-            diag = model.diagnose(s.code, r.stderr, ctx)
-            fix = model.propose_fix(s.code, r.stderr, ctx)
-            v = runner.run(fix, repo_dir) if fix != s.code else r
-            findings.append(Finding(rel, s.index, s.line,
-                "stale_fixed" if v.ok else "stale_unfixed", r.stderr.strip()[-200:], diag, fix if v.ok else ""))
+        all_snippets.extend(extract_snippets(rel, text))
+    if hasattr(runner, "run_file"):
+        all_results = runner.run_file([s.code for s in all_snippets], repo_dir)
+    else:
+        all_results = [runner.run(s.code, repo_dir) for s in all_snippets]
+    for s, r in zip(all_snippets, all_results):
+        if r.ok:
+            findings.append(Finding(s.file, s.index, s.line, "ok"))
+            continue
+        diag = model.diagnose(s.code, r.stderr, ctx)
+        fix = model.propose_fix(s.code, r.stderr, ctx)
+        v = runner.run(fix, repo_dir) if fix != s.code else r
+        findings.append(Finding(s.file, s.index, s.line,
+            "stale_fixed" if v.ok else "stale_unfixed", r.stderr.strip()[-200:], diag, fix if v.ok else ""))
     return findings
 
 def to_dicts(fs):

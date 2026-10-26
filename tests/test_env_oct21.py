@@ -97,3 +97,20 @@ class ServiceCascadeTest(unittest.TestCase):
         from docdrift.envclass import assigned_names
         self.assertEqual(assigned_names("import os\nx, y = 1, 2\ndef f(): pass\n"), {"os", "x", "y", "f"})
         self.assertEqual(assigned_names("not python ((("), set())
+
+
+class RepoSessionTest(unittest.TestCase):
+    def test_cross_file_session_state(self):
+        """Names bound in README snippets are visible to docs/*.md snippets."""
+        from docdrift.pipeline import scan_repo
+        from docdrift.mock_model import MockModel
+        from docdrift.constrained_runner import ConstrainedSubprocessRunner
+        with tempfile.TemporaryDirectory() as d:
+            os.mkdir(os.path.join(d, "docs"))
+            with open(os.path.join(d, "README.md"), "w") as f:
+                f.write('```python\nx = 41\n```\n')
+            with open(os.path.join(d, "docs", "guide.md"), "w") as f:
+                f.write('```python\ny = x + 1\n```\n')
+            findings = scan_repo(d, ConstrainedSubprocessRunner(), MockModel())
+            self.assertTrue(all(f.status == "ok" for f in findings),
+                            [(f.file, f.status, f.error) for f in findings])
