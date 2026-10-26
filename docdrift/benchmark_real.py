@@ -16,7 +16,9 @@ from .pipeline import scan_repo
 from .benchmark import score, load_truth
 from .bwrap_runner import BwrapRunner
 from .mock_model import MockModel
-from .envclass import is_environment_failure
+from .envclass import is_environment_failure, is_service_failure, is_cascade_failure
+from .pipeline import _doc_paths
+from .extract import extract_snippets
 
 
 def _load_env(repo_dir):
@@ -31,7 +33,7 @@ def run_benchmark(repo_dirs, model, runner=None, doc_globs=("README.md", "README
     default_runner = runner or BwrapRunner()
     repos = []
     totals = {"snippets": 0, "ok": 0, "stale_fixed": 0, "stale_unfixed": 0,
-              "environment_failures": 0}
+              "environment_failures": 0, "service_failures": 0, "cascade_failures": 0}
     for d in repo_dirs:
         env = _load_env(d)
         repo_runner = default_runner
@@ -43,18 +45,36 @@ def run_benchmark(repo_dirs, model, runner=None, doc_globs=("README.md", "README
         else:
             entry_venv = None
         findings = scan_repo(d, repo_runner, model, doc_globs=doc_globs)
-        evaluated, env_failed = [], []
+        codes_by_file = {}
+        for path in _doc_paths(d, doc_globs):
+            rel = os.path.relpath(path, d)
+            with open(path, errors="replace") as fh:
+                codes_by_file[rel] = [sn.code for sn in extract_snippets(rel, fh.read())]
+        evaluated, env_failed, svc_failed, casc_failed = [], [], [], []
+        failed_indexes = {}
         for f in findings:
-            if f.status != "ok" and is_environment_failure(f.error, d):
+            if f.status != "ok":
+                failed_indexes.setdefault(f.file, []).append(f.index)
+        for f in findings:
+            if f.status == "ok":
+                evaluated.append(f)
+            elif is_environment_failure(f.error, d):
                 env_failed.append(f)
+            elif is_service_failure(f.error):
+                svc_failed.append(f)
+            elif is_cascade_failure(f.error, codes_by_file.get(f.file, []),
+                                    [i for i in failed_indexes.get(f.file, []) if i < f.index]):
+                casc_failed.append(f)
             else:
                 evaluated.append(f)
+        def _brief(f):
+            return {"file": f.file, "line": f.line, "index": f.index,
+                    "error": f.error.strip().splitlines()[-1][:120] if f.error.strip() else ""}
         entry = {"repo": os.path.abspath(d), "venv": entry_venv,
                  "evaluated": [f.__dict__ for f in evaluated],
-                 "environment_failures": [
-                     {"file": f.file, "line": f.line, "index": f.index,
-                      "missing_module": f.error.strip().splitlines()[-1] if f.error.strip() else ""}
-                     for f in env_failed]}
+                 "environment_failures": [_brief(f) for f in env_failed],
+                 "service_failures": [_brief(f) for f in svc_failed],
+                 "cascade_failures": [_brief(f) for f in casc_failed]}
         truth_path = os.path.join(d, "truth.json")
         if os.path.exists(truth_path):
             entry["score"] = score(evaluated, load_truth(d))
@@ -63,6 +83,8 @@ def run_benchmark(repo_dirs, model, runner=None, doc_globs=("README.md", "README
             totals["snippets"] += 1
             totals[f.status] += 1
         totals["environment_failures"] += len(env_failed)
+        totals["service_failures"] += len(svc_failed)
+        totals["cascade_failures"] += len(casc_failed)
     report = {"repos": repos, "totals": totals,
               "model_tokens": {"prompt": getattr(model, "prompt_tokens", None),
                                "completion": getattr(model, "completion_tokens", None),

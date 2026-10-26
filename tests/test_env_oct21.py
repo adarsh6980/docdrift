@@ -72,3 +72,28 @@ class PreparedVenvTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ServiceCascadeTest(unittest.TestCase):
+    def test_service_failure(self):
+        from docdrift.envclass import is_service_failure
+        self.assertTrue(is_service_failure(
+            "sqlalchemy.exc.NoSuchModuleError: Can't load plugin: sqlalchemy.dialects:postgres"))
+        self.assertTrue(is_service_failure("psycopg2.OperationalError: could not connect to server"))
+        self.assertFalse(is_service_failure("NameError: name 'rows' is not defined"))
+
+    def test_cascade_only_when_earlier_failed_snippet_binds_name(self):
+        from docdrift.envclass import is_cascade_failure
+        codes = ["import records\nrows = db.query('select 1')", "print(rows)", "print(N)"]
+        err = "NameError: name 'rows' is not defined"
+        # earlier snippet 0 failed and assigns rows -> cascade
+        self.assertTrue(is_cascade_failure(err, codes, [0]))
+        # snippet 0 succeeded -> not cascade
+        self.assertFalse(is_cascade_failure(err, codes, []))
+        # N is never assigned in code (prose-defined) -> not cascade
+        self.assertFalse(is_cascade_failure("NameError: name 'N' is not defined", codes, [0, 1]))
+
+    def test_assigned_names(self):
+        from docdrift.envclass import assigned_names
+        self.assertEqual(assigned_names("import os\nx, y = 1, 2\ndef f(): pass\n"), {"os", "x", "y", "f"})
+        self.assertEqual(assigned_names("not python ((("), set())
