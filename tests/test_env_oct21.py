@@ -44,8 +44,9 @@ class BenchmarkExclusionTest(unittest.TestCase):
                 os.chdir(cwd)
             t = rep["totals"]
             self.assertEqual(t["environment_failures"], 1)
-            self.assertEqual(t["snippets"], 1)  # only the real finding counts
+            self.assertEqual(t["evaluated"], 1)  # only the real finding counts
             self.assertEqual(t["stale_unfixed"], 1)
+            self.assertEqual(t["executed"], 2)  # disjoint: evaluated + excluded
             self.assertEqual(len(rep["repos"][0]["environment_failures"]), 1)
 
 

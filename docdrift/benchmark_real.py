@@ -32,7 +32,10 @@ def _load_env(repo_dir):
 def run_benchmark(repo_dirs, model, runner=None, doc_globs=("README.md", "README.rst", "docs/*.md", "docs/*.rst")):
     default_runner = runner or BwrapRunner()
     repos = []
-    totals = {"snippets": 0, "ok": 0, "stale_fixed": 0, "stale_unfixed": 0,
+    # Disjoint categories: every executed snippet lands in exactly one bucket.
+    # executed = evaluated + environment + service + cascade failures;
+    # evaluated = ok + stale_fixed + stale_unfixed.
+    totals = {"executed": 0, "evaluated": 0, "ok": 0, "stale_fixed": 0, "stale_unfixed": 0,
               "environment_failures": 0, "service_failures": 0, "cascade_failures": 0}
     for d in repo_dirs:
         env = _load_env(d)
@@ -80,12 +83,16 @@ def run_benchmark(repo_dirs, model, runner=None, doc_globs=("README.md", "README
             entry["score"] = score(evaluated, load_truth(d))
         repos.append(entry)
         for f in evaluated:
-            totals["snippets"] += 1
+            totals["evaluated"] += 1
             totals[f.status] += 1
         totals["environment_failures"] += len(env_failed)
         totals["service_failures"] += len(svc_failed)
         totals["cascade_failures"] += len(casc_failed)
-    report = {"repos": repos, "totals": totals,
+        totals["executed"] += len(evaluated) + len(env_failed) + len(svc_failed) + len(casc_failed)
+    report = {"execution_mode": ("repo-wide shared namespace in doc-reading order "
+                                 "(README first) - an execution assumption, not ground "
+                                 "truth about example independence"),
+              "repos": repos, "totals": totals,
               "model_tokens": {"prompt": getattr(model, "prompt_tokens", None),
                                "completion": getattr(model, "completion_tokens", None),
                                "calls": getattr(model, "calls", None)}}

@@ -47,9 +47,23 @@ class TestBenchmarkReal(unittest.TestCase):
             try:
                 rep = run_benchmark([repo("calc_repo"), repo("ok_repo")], MockModel(), runner=ConstrainedSubprocessRunner())
                 self.assertTrue(os.path.exists("docdrift-benchmark-report.json"))
-                self.assertEqual(rep["totals"]["snippets"], 3)
+                self.assertEqual(rep["totals"]["evaluated"], 3)
+                self.assertEqual(rep["totals"]["executed"], 3)
                 self.assertEqual(rep["totals"]["stale_unfixed"], 1)
                 self.assertIn("score", rep["repos"][0])
+            finally:
+                os.chdir(cwd)
+    def test_disjoint_totals_and_execution_mode_label(self):
+        cwd = os.getcwd()
+        with tempfile.TemporaryDirectory() as td:
+            os.chdir(td)
+            try:
+                rep = run_benchmark([repo("calc_repo"), repo("ok_repo")], MockModel(), runner=ConstrainedSubprocessRunner())
+                self.assertIn("assumption", rep["execution_mode"])
+                t = rep["totals"]
+                self.assertEqual(t["executed"],
+                                 t["evaluated"] + t["environment_failures"]
+                                 + t["service_failures"] + t["cascade_failures"])
             finally:
                 os.chdir(cwd)
 
