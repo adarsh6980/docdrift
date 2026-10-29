@@ -10,6 +10,8 @@ def _http(url, headers, body, timeout=60):
         return json.loads(r.read())
 
 class NemotronModel:
+    provider = "nebius-token-factory"
+
     def __init__(self, model_id, api_key=None, transport=_http, base_url=BASE_URL):
         self.model_id = model_id
         self.key = api_key or os.environ.get("NEBIUS_API_KEY")

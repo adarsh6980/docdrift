@@ -45,5 +45,38 @@ class DemoPageRenderTest(unittest.TestCase):
         self.assertIn("README.md#0", render(report))
 
 
+
+    def test_offline_banner_visible_on_mock_run(self):
+        report = {"repos": [{"repo": "/tmp/x", "evaluated": [], "environment_failures": [],
+                             "service_failures": [], "cascade_failures": []}],
+                  "model": {"provider": "mock-offline"},
+                  "model_tokens": {"prompt": None, "completion": None, "calls": 4}}
+        page = render(report)
+        self.assertIn("Offline dry run (MockModel)", page)
+        self.assertIn("designed to run on Nebius Token Factory", page)
+        self.assertNotIn(">Live run.<", page)
+
+    def test_live_banner_on_measured_run(self):
+        report = {"repos": [{"repo": "/tmp/x", "evaluated": [], "environment_failures": [],
+                             "service_failures": [], "cascade_failures": []}],
+                  "model": {"provider": "nebius-token-factory", "model_id": "nvidia/nemotron-3-nano"},
+                  "model_tokens": {"prompt": 12, "completion": 4, "calls": 2}}
+        page = render(report)
+        self.assertIn("Live run", page)
+        self.assertIn("ran live on Nebius Token Factory", page)
+        self.assertIn("nvidia/nemotron-3-nano", page)
+        self.assertNotIn("Offline dry run", page)
+
+    def test_nonnull_token_counts_without_provider_are_not_live(self):
+        # Mock or hand-edited token counts must not create live evidence.
+        report = {"repos": [{"repo": "/tmp/x", "evaluated": [], "environment_failures": [],
+                             "service_failures": [], "cascade_failures": []}],
+                  "model": {"provider": "mock-offline"},
+                  "model_tokens": {"prompt": 999, "completion": 999, "calls": 9}}
+        page = render(report)
+        self.assertIn("Offline dry run (MockModel)", page)
+        self.assertNotIn("Live run", page)
+
+
 if __name__ == "__main__":
     unittest.main()

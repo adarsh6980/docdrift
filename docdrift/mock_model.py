@@ -1,4 +1,6 @@
 class MockModel:
+    provider = "mock-offline"
+
     """Deterministic stand-in. Looks up canned fixes by exact snippet text. No network. Not Nemotron."""
     def __init__(self, fixes=None):
         self.fixes = fixes or {}

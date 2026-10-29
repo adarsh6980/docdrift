@@ -89,10 +89,17 @@ def run_benchmark(repo_dirs, model, runner=None, doc_globs=("README.md", "README
         totals["service_failures"] += len(svc_failed)
         totals["cascade_failures"] += len(casc_failed)
         totals["executed"] += len(evaluated) + len(env_failed) + len(svc_failed) + len(casc_failed)
+    # Provenance of the model execution that produced this report. Taken from
+    # the model object's own recorded identity, never inferred from token
+    # fields: a mock or hand-edited token count must not read as a live run.
+    provider = getattr(model, "provider", "unknown")
+    model_prov = {"provider": provider}
+    if provider == "nebius-token-factory":
+        model_prov["model_id"] = getattr(model, "model_id", None)
     report = {"execution_mode": ("repo-wide shared namespace in doc-reading order "
                                  "(README first) - an execution assumption, not ground "
                                  "truth about example independence"),
-              "repos": repos, "totals": totals,
+              "repos": repos, "totals": totals, "model": model_prov,
               "model_tokens": {"prompt": getattr(model, "prompt_tokens", None),
                                "completion": getattr(model, "completion_tokens", None),
                                "calls": getattr(model, "calls", None)}}

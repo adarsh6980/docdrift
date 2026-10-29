@@ -38,16 +38,31 @@ def render(report, title="DocDrift demo"):
                 row(f, status)
         rows.append("</table>")
     t = report.get("model_tokens", {})
+    # Provenance is the recorded model execution in the report, never the
+    # token fields: mock or supplied counts must not create live evidence.
+    mp = report.get("model") or {}
+    live = mp.get("provider") == "nebius-token-factory" and bool(mp.get("model_id"))
+    if live:
+        provenance = (f"<p style='border:1px solid #067a3f;color:#067a3f;padding:.6rem;border-radius:8px'>"
+                      f"<b>Live run.</b> Model calls went through Nebius Token Factory "
+                      f"(model <code>{html.escape(str(mp['model_id']))}</code>); token usage below is measured.</p>")
+        footer = (f"ran live on Nebius Token Factory with the NVIDIA Nemotron open model "
+                  f"<code>{html.escape(str(mp['model_id']))}</code>.")
+    else:
+        provenance = ("<p style='border:1px solid #b3261e;color:#b3261e;padding:.6rem;border-radius:8px'>"
+                      "<b>Offline dry run (MockModel).</b> No live Nemotron/Token Factory calls produced "
+                      "this report; token fields are null. A live run replaces this banner with measured token usage.</p>")
+        footer = ("designed to run on Nebius Token Factory with NVIDIA Nemotron open models; "
+                  "this report was produced offline without live model calls.")
     return (f"<!doctype html><html><head><meta charset='utf-8'><title>{html.escape(title)}</title>"
             f"<meta name='viewport' content='width=device-width,initial-scale=1'><style>{CSS}</style></head><body>"
             f"<h1>{html.escape(title)}</h1>"
             f"<p>DocDrift finds doc code snippets that no longer match the code, proposes fixes, and re-runs "
             f"each fix. Only fixes that pass the re-run are shown as verified.</p>"
-            + "".join(rows) +
+            + provenance + "".join(rows) +
             f"<div class='card'><b>Model usage</b>: calls={t.get('calls')}, "
             f"prompt tokens={t.get('prompt')}, completion tokens={t.get('completion')}</div>"
-            f"<p><a href='https://github.com/adarsh6980/docdrift'>Source code</a> - built on Nebius Token Factory "
-            f"with NVIDIA Nemotron open models.</p></body></html>")
+            f"<p><a href='https://github.com/adarsh6980/docdrift'>Source code</a> - {footer}</p></body></html>")
 
 def main():
     ap = argparse.ArgumentParser()
