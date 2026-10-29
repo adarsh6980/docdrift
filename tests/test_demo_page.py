@@ -95,3 +95,15 @@ class DemoPageRenderTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class RecordNoteTest(unittest.TestCase):
+    def test_record_note_rendered_when_present(self):
+        report = {"record_note": "Reconstructed from surviving artifacts <b>not html</b>.",
+                  "repos": [], "totals": {}, "model_tokens": {}}
+        page = render(report)
+        self.assertIn("Record note:", page)
+        self.assertIn("Reconstructed from surviving artifacts &lt;b&gt;not html&lt;/b&gt;.", page)
+
+    def test_no_record_note_by_default(self):
+        page = render({"repos": [], "totals": {}, "model_tokens": {}})
+        self.assertNotIn("Record note:", page)

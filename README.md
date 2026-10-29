@@ -3,7 +3,7 @@
 Finds code snippets in your README/docs that no longer match the repo's code or library versions, proposes a fix with NVIDIA Nemotron via Nebius Token Factory, and re-runs each fix so only verified fixes are reported.
 
 ## Status, plainly
-- Working: snippet extraction, pipeline, scoring, 3 seeded fixture repos - 63 tests pass.
+- Working: snippet extraction, pipeline, scoring, 3 seeded fixture repos - 64 tests pass.
 - Live-verified on Token Factory (Oct 29, nvidia/Nemotron-3_5-Lightning): end-to-end run over the 3 fixture repos produced one model fix that passed its sandbox rerun (reported stale_fixed) and one that failed its rerun (rejected, reported stale_unfixed). The verify-by-rerun guardrail works against a live model.
 - Extraction (`extract.py`): Markdown fenced blocks, reStructuredText `code-block`/`code` directives (including whitespace-blank separators), `pycon` fences, and bare `>>>` doctest blocks. Doctest-style snippets are normalized to runnable code (prompt/output lines stripped, dedented). Covers `README.md`, `README.rst`, `docs/*.md`, `docs/*.rst`.
 - Session execution (`session.py`): docs build state across blocks, so snippets from one file run in order in a single driver process with a shared namespace, and across a repo's doc set in reading order (README first). Per-snippet ok/stdout/stderr is still reported individually.
