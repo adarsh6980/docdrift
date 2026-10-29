@@ -59,7 +59,8 @@ class DemoPageRenderTest(unittest.TestCase):
     def test_live_banner_on_measured_run(self):
         report = {"repos": [{"repo": "/tmp/x", "evaluated": [], "environment_failures": [],
                              "service_failures": [], "cascade_failures": []}],
-                  "model": {"provider": "nebius-token-factory", "model_id": "nvidia/nemotron-3-nano"},
+                  "model": {"provider": "nebius-token-factory", "model_id": "nvidia/nemotron-3-nano",
+                            "successful_calls": 3},
                   "model_tokens": {"prompt": 12, "completion": 4, "calls": 2}}
         page = render(report)
         self.assertIn("Live run", page)
@@ -77,6 +78,20 @@ class DemoPageRenderTest(unittest.TestCase):
         self.assertIn("Offline dry run (MockModel)", page)
         self.assertNotIn("Live run", page)
 
+
+
+    def test_configured_but_zero_successful_calls_is_not_live(self):
+        # A constructed Token Factory client with no successful generation
+        # this run must render as unverified, never as Live.
+        report = {"repos": [{"repo": "/tmp/x", "evaluated": [], "environment_failures": [],
+                             "service_failures": [], "cascade_failures": []}],
+                  "model": {"provider": "nebius-token-factory", "model_id": "nvidia/nemotron-3-nano",
+                            "successful_calls": 0},
+                  "model_tokens": {"prompt": 0, "completion": 0, "calls": 0}}
+        page = render(report)
+        self.assertIn("Live integration unverified", page)
+        self.assertNotIn("<b>Live run.</b>", page)
+        self.assertNotIn("Offline dry run", page)
 
 if __name__ == "__main__":
     unittest.main()

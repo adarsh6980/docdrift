@@ -96,6 +96,9 @@ def run_benchmark(repo_dirs, model, runner=None, doc_globs=("README.md", "README
     model_prov = {"provider": provider}
     if provider == "nebius-token-factory":
         model_prov["model_id"] = getattr(model, "model_id", None)
+        # Successful generations recorded by the model object this run; a
+        # configured-but-never-succeeded run must not read as Live downstream.
+        model_prov["successful_calls"] = getattr(model, "ok_calls", None)
     report = {"execution_mode": ("repo-wide shared namespace in doc-reading order "
                                  "(README first) - an execution assumption, not ground "
                                  "truth about example independence"),

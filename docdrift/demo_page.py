@@ -41,13 +41,24 @@ def render(report, title="DocDrift demo"):
     # Provenance is the recorded model execution in the report, never the
     # token fields: mock or supplied counts must not create live evidence.
     mp = report.get("model") or {}
-    live = mp.get("provider") == "nebius-token-factory" and bool(mp.get("model_id"))
+    tf = mp.get("provider") == "nebius-token-factory" and bool(mp.get("model_id"))
+    # Live requires recorded successful provider generations this run, not
+    # merely a constructed client: zero-call or all-failed runs are not Live.
+    live = tf and bool(mp.get("successful_calls"))
     if live:
         provenance = (f"<p style='border:1px solid #067a3f;color:#067a3f;padding:.6rem;border-radius:8px'>"
                       f"<b>Live run.</b> Model calls went through Nebius Token Factory "
                       f"(model <code>{html.escape(str(mp['model_id']))}</code>); token usage below is measured.</p>")
         footer = (f"ran live on Nebius Token Factory with the NVIDIA Nemotron open model "
                   f"<code>{html.escape(str(mp['model_id']))}</code>.")
+    elif tf:
+        provenance = (f"<p style='border:1px solid #b45309;color:#b45309;padding:.6rem;border-radius:8px'>"
+                      f"<b>Live integration unverified.</b> Nebius Token Factory was configured "
+                      f"(model <code>{html.escape(str(mp['model_id']))}</code>) but no successful model call "
+                      f"completed in this run. Treat the live path as unverified.</p>")
+        footer = (f"configured for Nebius Token Factory with NVIDIA Nemotron model "
+                  f"<code>{html.escape(str(mp['model_id']))}</code>, but no successful live model call "
+                  f"completed for this report.")
     else:
         provenance = ("<p style='border:1px solid #b3261e;color:#b3261e;padding:.6rem;border-radius:8px'>"
                       "<b>Offline dry run (MockModel).</b> No live Nemotron/Token Factory calls produced "

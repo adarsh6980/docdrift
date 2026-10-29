@@ -17,6 +17,7 @@ class NemotronModel:
         self.key = api_key or os.environ.get("NEBIUS_API_KEY")
         self.transport, self.base_url = transport, base_url
         self.calls = 0
+        self.ok_calls = 0
         self.prompt_tokens = self.completion_tokens = 0
 
     def _chat(self, system, user):
@@ -29,7 +30,9 @@ class NemotronModel:
         u = out.get("usage", {})
         self.prompt_tokens += u.get("prompt_tokens", 0)
         self.completion_tokens += u.get("completion_tokens", 0)
-        return out["choices"][0]["message"]["content"]
+        content = out["choices"][0]["message"]["content"]
+        self.ok_calls += 1  # incremented only after a response parsed successfully
+        return content
 
     def diagnose(self, code, error, repo_context):
         return self._chat("You debug stale documentation snippets. Answer in one sentence: why does this snippet fail against the current code?",
