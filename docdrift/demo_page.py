@@ -7,10 +7,14 @@ fixes were verified by re-running, and what the model calls cost in tokens.
 Hosting it anywhere public is a separate, user-approved step."""
 import argparse, html, json, os
 
-CSS = "body{font-family:system-ui,sans-serif;max-width:900px;margin:2rem auto;padding:0 1rem;color:#1a1a1a}" \
-      "table{border-collapse:collapse;width:100%;margin:1rem 0}td,th{border:1px solid #ccc;padding:.4rem .6rem;text-align:left;font-size:.9rem}" \
-      ".ok{color:#067a3f}.stale_fixed{color:#0b5cad}.stale_unfixed{color:#b3261e}.stale_no_fix{color:#b45309}code,pre{background:#f4f4f4;padding:.1rem .3rem;font-size:.85rem}" \
-      "pre{padding:.6rem;overflow-x:auto}.card{border:1px solid #ddd;border-radius:8px;padding:1rem;margin:1rem 0}"
+CSS = "body{font-family:system-ui,sans-serif;max-width:1150px;margin:2rem auto;padding:0 1rem;color:#1a1a1a}" \
+      "table{border-collapse:collapse;width:100%;margin:1rem 0}td,th{border:1px solid #ccc;padding:.4rem .6rem;text-align:left;font-size:.9rem;vertical-align:top}" \
+      ".ok{color:#067a3f}.stale_fixed{color:#0b5cad}.stale_unfixed{color:#b3261e}.stale_no_fix{color:#b45309}" \
+      ".environment,.service,.cascade{color:#666}code,pre{background:#f4f4f4;padding:.1rem .3rem;font-size:.85rem}" \
+      "pre{padding:.6rem;overflow-x:auto;white-space:pre-wrap;word-break:break-word;margin:.2rem 0}" \
+      "details{margin:.1rem 0}details>summary{cursor:pointer;color:#555;font-size:.85rem}" \
+      "details[open]>summary{margin-bottom:.3rem}" \
+      ".card{border:1px solid #ddd;border-radius:8px;padding:1rem;margin:1rem 0}"
 
 def render(report, title="DocDrift demo"):
     rows = []
@@ -27,13 +31,29 @@ def render(report, title="DocDrift demo"):
         # New disjoint report schema: evaluated findings carry full detail; the
         # environment/service/cascade lists carry brief entries and are shown
         # under their classification, never as stale-doc candidates.
+        def expandable(text, summary=None):
+            # Full evidence, readable: short text inline; long text in an
+            # expandable block whose summary is the actionable line. Never
+            # truncate: a cut-off error conceals the failure it reports.
+            text = text or ""
+            if not text:
+                return ""
+            esc = html.escape(text)
+            if len(text) <= 160 and "\n" not in text:
+                return f"<code>{esc}</code>"
+            if summary is None:
+                lines = [l for l in text.splitlines() if l.strip()]
+                summary = lines[-1] if lines else "details"
+            return (f"<details><summary>{html.escape(summary)}</summary>"
+                    f"<pre>{esc}</pre></details>")
+
         def row(f, status):
             orig = f"<pre>{html.escape(f['code'])}</pre>" if f.get("code") else ""
             if f.get("fixed_code"):
-                ev = f"<b>verified by rerun:</b><pre>{html.escape(f['fixed_code'])}</pre>"
+                ev = f"<b>verified by rerun:</b>{expandable(f['fixed_code'], 'show verified fix')}"
             elif f.get("fix_attempt"):
-                ev = (f"<b>rejected - rerun failed:</b><pre>{html.escape(f['fix_attempt'])}</pre>"
-                      f"<code>{html.escape((f.get('fix_error') or '')[:120])}</code>")
+                ev = (f"<b>rejected - rerun failed:</b>{expandable(f['fix_attempt'], 'show rejected fix')}"
+                      f"{expandable(f.get('fix_error'), 'show rerun error that rejected it')}")
             elif status == "stale_no_fix":
                 ev = "<i>model produced no parseable fix (generation/format outcome; nothing reran)</i>"
             else:
@@ -41,7 +61,7 @@ def render(report, title="DocDrift demo"):
             rows.append(f"<tr><td><code>{html.escape(f['file'])}#{f['index']}</code> (line {f['line']})</td>"
                         f"<td class='{status}'>{status.replace('_',' ')}</td>"
                         f"<td>{orig}</td>"
-                        f"<td><code>{html.escape((f.get('error') or '')[:120])}</code></td><td>{ev}</td></tr>")
+                        f"<td>{expandable(f.get('error'))}</td><td>{ev}</td></tr>")
         for f in repo.get("evaluated", repo.get("findings", [])):
             row(f, f.get("status", "ok"))
         for key, status in (("environment_failures", "environment"),

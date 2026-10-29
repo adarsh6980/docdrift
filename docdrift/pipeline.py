@@ -66,16 +66,16 @@ def scan_repo(repo_dir, runner, model, doc_globs=("README.md", "README.rst", "do
             # No parseable/effective fix produced: record the generation/format
             # outcome distinctly. The original failure stands; nothing reran.
             findings.append(Finding(s.file, s.index, s.line,
-                "stale_no_fix", r.stderr.strip()[-200:], diag, "", code=s.code))
+                "stale_no_fix", r.stderr.strip(), diag, "", code=s.code))
             continue
         v = runner.run(fix, repo_dir)
         if v.ok:
             findings.append(Finding(s.file, s.index, s.line,
-                "stale_fixed", r.stderr.strip()[-200:], diag, fix, code=s.code))
+                "stale_fixed", r.stderr.strip(), diag, fix, code=s.code))
         else:
             findings.append(Finding(s.file, s.index, s.line,
-                "stale_unfixed", r.stderr.strip()[-200:], diag, "", code=s.code,
-                fix_attempt=fix, fix_error=(v.stderr or "").strip()[-200:]))
+                "stale_unfixed", r.stderr.strip(), diag, "", code=s.code,
+                fix_attempt=fix, fix_error=(v.stderr or "").strip()))
     return findings
 
 def to_dicts(fs):

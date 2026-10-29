@@ -6,7 +6,7 @@ Without --live it uses the deterministic MockModel (offline dry run of the harne
 Snippets from the given repos are treated as untrusted and run under BwrapRunner
 (Linux namespace isolation: no network, bounded filesystem, read-only repo).
 With --live it calls Token Factory through NemotronModel; NEBIUS_API_KEY must be set.
-Writes docdrift-benchmark-report.json in the current directory.
+Writes docdrift-benchmark-report.json (or --report PATH) in the current directory.
 
 Repos with a truth.json ({"file#index": "ok"|"stale"}) also get precision/recall.
 Model token usage is reported; map tokens to cost using the current pricing page
@@ -29,7 +29,8 @@ def _load_env(repo_dir):
         return json.load(f)
 
 
-def run_benchmark(repo_dirs, model, runner=None, doc_globs=("README.md", "README.rst", "docs/*.md", "docs/*.rst")):
+def run_benchmark(repo_dirs, model, runner=None, doc_globs=("README.md", "README.rst", "docs/*.md", "docs/*.rst"),
+                  report_path=None):
     default_runner = runner or BwrapRunner()
     repos = []
     # Disjoint categories: every executed snippet lands in exactly one bucket.
@@ -106,7 +107,8 @@ def run_benchmark(repo_dirs, model, runner=None, doc_globs=("README.md", "README
               "model_tokens": {"prompt": getattr(model, "prompt_tokens", None),
                                "completion": getattr(model, "completion_tokens", None),
                                "calls": getattr(model, "calls", None)}}
-    with open("docdrift-benchmark-report.json", "w") as f:
+    path = report_path or "docdrift-benchmark-report.json"
+    with open(path, "w") as f:
         json.dump(report, f, indent=2)
     return report
 
@@ -115,6 +117,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("repos", nargs="+")
     ap.add_argument("--live", metavar="MODEL_ID", help="use Token Factory with this model id")
+    ap.add_argument("--report", default="docdrift-benchmark-report.json",
+                    help="report output path - point it somewhere durable for live runs")
     args = ap.parse_args()
     if args.live:
         from .nemotron import NemotronModel
@@ -122,9 +126,9 @@ def main():
     else:
         model = MockModel()
         print("offline dry run (MockModel). Pass --live MODEL_ID for a real run.")
-    report = run_benchmark(args.repos, model)
+    report = run_benchmark(args.repos, model, report_path=args.report)
     print(json.dumps({"totals": report["totals"], "model_tokens": report["model_tokens"]}, indent=2))
-    print("wrote docdrift-benchmark-report.json")
+    print(f"wrote {args.report}")
 
 
 if __name__ == "__main__":
