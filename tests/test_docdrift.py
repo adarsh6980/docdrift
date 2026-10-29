@@ -15,9 +15,11 @@ class T(unittest.TestCase):
     def test_no_false_alarm(self):
         fs = scan_repo(repo("ok_repo"), LocalFixtureRunner(), MockModel())
         self.assertTrue(all(f.status == "ok" for f in fs))
-    def test_detects_stale_unfixed_without_fix(self):
+    def test_detects_stale_no_fix_without_fix(self):
+        # MockModel without a canned fix produces no fix: generation/format
+        # outcome, no rerun - distinct from a fix that failed its rerun.
         fs = scan_repo(repo("calc_repo"), LocalFixtureRunner(), MockModel())
-        self.assertEqual([f.status for f in fs], ["ok", "stale_unfixed"])
+        self.assertEqual([f.status for f in fs], ["ok", "stale_no_fix"])
     def test_fix_is_verified_by_rerun(self):
         bad = 'from fastcalc import add_numbers\nprint(add_numbers(1, 2))\n'
         good = 'from fastcalc import add\nprint(add(1, 2))\n'

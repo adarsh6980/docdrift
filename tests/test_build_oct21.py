@@ -37,7 +37,7 @@ class TestPipelineContext(unittest.TestCase):
         self.assertIn("top-level:", c); self.assertIn("lib", c)
     def test_scan_still_works_with_root_readme_glob(self):
         fs = scan_repo(repo("calc_repo"), ConstrainedSubprocessRunner(), MockModel())
-        self.assertEqual([f.status for f in fs], ["ok", "stale_unfixed"])
+        self.assertEqual([f.status for f in fs], ["ok", "stale_no_fix"])
 
 class TestBenchmarkReal(unittest.TestCase):
     def test_offline_dry_run_report(self):
@@ -49,7 +49,7 @@ class TestBenchmarkReal(unittest.TestCase):
                 self.assertTrue(os.path.exists("docdrift-benchmark-report.json"))
                 self.assertEqual(rep["totals"]["evaluated"], 3)
                 self.assertEqual(rep["totals"]["executed"], 3)
-                self.assertEqual(rep["totals"]["stale_unfixed"], 1)
+                self.assertEqual(rep["totals"]["stale_no_fix"], 1)  # bare MockModel produces no fix
                 self.assertIn("score", rep["repos"][0])
             finally:
                 os.chdir(cwd)

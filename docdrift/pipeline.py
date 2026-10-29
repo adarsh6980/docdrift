@@ -7,7 +7,10 @@ class Finding:
     file: str
     index: int
     line: int
-    status: str            # ok | stale_fixed | stale_unfixed
+    status: str            # ok | stale_fixed | stale_unfixed | stale_no_fix
+                           # stale_no_fix = model produced no parseable fix
+                           # (generation/format outcome); no fix rerun happened,
+                           # so it says nothing about any model-produced fix.
     error: str = ""
     diagnosis: str = ""
     fixed_code: str = ""
@@ -56,7 +59,13 @@ def scan_repo(repo_dir, runner, model, doc_globs=("README.md", "README.rst", "do
             continue
         diag = model.diagnose(s.code, r.stderr, ctx)
         fix = model.propose_fix(s.code, r.stderr, ctx)
-        v = runner.run(fix, repo_dir) if fix != s.code else r
+        if fix is None or fix == s.code:
+            # No parseable/effective fix produced: record the generation/format
+            # outcome distinctly. The original failure stands; nothing reran.
+            findings.append(Finding(s.file, s.index, s.line,
+                "stale_no_fix", r.stderr.strip()[-200:], diag, ""))
+            continue
+        v = runner.run(fix, repo_dir)
         findings.append(Finding(s.file, s.index, s.line,
             "stale_fixed" if v.ok else "stale_unfixed", r.stderr.strip()[-200:], diag, fix if v.ok else ""))
     return findings

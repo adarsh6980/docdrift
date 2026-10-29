@@ -9,7 +9,7 @@ import argparse, html, json
 
 CSS = "body{font-family:system-ui,sans-serif;max-width:900px;margin:2rem auto;padding:0 1rem;color:#1a1a1a}" \
       "table{border-collapse:collapse;width:100%;margin:1rem 0}td,th{border:1px solid #ccc;padding:.4rem .6rem;text-align:left;font-size:.9rem}" \
-      ".ok{color:#067a3f}.stale_fixed{color:#0b5cad}.stale_unfixed{color:#b3261e}code,pre{background:#f4f4f4;padding:.1rem .3rem;font-size:.85rem}" \
+      ".ok{color:#067a3f}.stale_fixed{color:#0b5cad}.stale_unfixed{color:#b3261e}.stale_no_fix{color:#b45309}code,pre{background:#f4f4f4;padding:.1rem .3rem;font-size:.85rem}" \
       "pre{padding:.6rem;overflow-x:auto}.card{border:1px solid #ddd;border-radius:8px;padding:1rem;margin:1rem 0}"
 
 def render(report, title="DocDrift demo"):

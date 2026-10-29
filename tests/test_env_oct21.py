@@ -45,7 +45,7 @@ class BenchmarkExclusionTest(unittest.TestCase):
             t = rep["totals"]
             self.assertEqual(t["environment_failures"], 1)
             self.assertEqual(t["evaluated"], 1)  # only the real finding counts
-            self.assertEqual(t["stale_unfixed"], 1)
+            self.assertEqual(t["stale_no_fix"], 1)  # bare MockModel: no fix, generation outcome
             self.assertEqual(t["executed"], 2)  # disjoint: evaluated + excluded
             self.assertEqual(len(rep["repos"][0]["environment_failures"]), 1)
 

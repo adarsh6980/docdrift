@@ -35,7 +35,7 @@ def run_benchmark(repo_dirs, model, runner=None, doc_globs=("README.md", "README
     # Disjoint categories: every executed snippet lands in exactly one bucket.
     # executed = evaluated + environment + service + cascade failures;
     # evaluated = ok + stale_fixed + stale_unfixed.
-    totals = {"executed": 0, "evaluated": 0, "ok": 0, "stale_fixed": 0, "stale_unfixed": 0,
+    totals = {"executed": 0, "evaluated": 0, "ok": 0, "stale_fixed": 0, "stale_unfixed": 0, "stale_no_fix": 0,
               "environment_failures": 0, "service_failures": 0, "cascade_failures": 0}
     for d in repo_dirs:
         env = _load_env(d)

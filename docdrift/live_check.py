@@ -50,7 +50,9 @@ def main():
     usage = out.get("usage", {})
     print(f"reply: {reply!r}")
     print(f"tokens: prompt={usage.get('prompt_tokens')} completion={usage.get('completion_tokens')}")
-    print("LIVE CHECK PASSED")
+    print("LIVE ACCESS CHECK PASSED - proves authentication, model access and the billing path with one")
+    print("bounded call only. It is NOT a task-correctness test: a capped reasoning-model reply that")
+    print("never reaches a final answer still passes, and no DocDrift workflow ran.")
 
 
 if __name__ == "__main__":
