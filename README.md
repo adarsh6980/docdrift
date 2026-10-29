@@ -4,6 +4,15 @@ DocDrift checks the code examples in your README and docs against reality. It ru
 
 **Live demo:** https://adarsh6980.github.io/docdrift/ · **License:** MIT · **Dependencies:** none for offline use
 
+## Demo video
+
+Two-minute demo recorded for the Nebius x NVIDIA Global AI Hackathon:
+
+[![DocDrift demo - Nebius x NVIDIA Global AI Hackathon](https://img.youtube.com/vi/685Kr5huKiE/hqdefault.jpg)](https://www.youtube.com/watch?v=685Kr5huKiE)
+
+- Watch on YouTube: https://www.youtube.com/watch?v=685Kr5huKiE
+- Or play it straight from this repo: [docs/docdrift-demo.mp4](docs/docdrift-demo.mp4)
+
 ## Why
 
 README examples quietly rot: an argument gets renamed, an import moves, a dependency drops an overload, and the docs keep lying. AI fix suggestions look convincing and are often wrong. DocDrift's core rule: a fix is only a fix if it executes.
