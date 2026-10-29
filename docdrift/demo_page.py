@@ -5,7 +5,7 @@
 The page is the candidate public demo URL artifact: what DocDrift found, which
 fixes were verified by re-running, and what the model calls cost in tokens.
 Hosting it anywhere public is a separate, user-approved step."""
-import argparse, html, json
+import argparse, html, json, os
 
 CSS = "body{font-family:system-ui,sans-serif;max-width:900px;margin:2rem auto;padding:0 1rem;color:#1a1a1a}" \
       "table{border-collapse:collapse;width:100%;margin:1rem 0}td,th{border:1px solid #ccc;padding:.4rem .6rem;text-align:left;font-size:.9rem}" \
@@ -14,21 +14,34 @@ CSS = "body{font-family:system-ui,sans-serif;max-width:900px;margin:2rem auto;pa
 
 def render(report, title="DocDrift demo"):
     rows = []
+    n_repos = len(report.get("repos", []))
+    n_exec = (report.get("totals") or {}).get("executed", 0)
     for repo in report.get("repos", []):
-        rows.append(f"<h2>{html.escape(repo['repo'])}</h2>")
+        # Display a clean repo name; absolute local paths add nothing and leak layout.
+        rows.append(f"<h2>{html.escape(os.path.basename(repo['repo'].rstrip('/')) or repo['repo'])}</h2>")
         if "score" in repo:
             sc = repo["score"]
             rows.append(f"<p>precision {sc['precision']:.2f} - recall {sc['recall']:.2f} - "
                         f"verified fixes {sc['verified_fixed']} of {sc['stale_total']} stale</p>")
-        rows.append("<table><tr><th>snippet</th><th>status</th><th>error</th><th>verified fix</th></tr>")
+        rows.append("<table><tr><th>snippet</th><th>status</th><th>original code</th><th>error</th><th>fix evidence</th></tr>")
         # New disjoint report schema: evaluated findings carry full detail; the
         # environment/service/cascade lists carry brief entries and are shown
         # under their classification, never as stale-doc candidates.
         def row(f, status):
-            fix = f"<pre>{html.escape(f['fixed_code'])}</pre>" if f.get("fixed_code") else ""
+            orig = f"<pre>{html.escape(f['code'])}</pre>" if f.get("code") else ""
+            if f.get("fixed_code"):
+                ev = f"<b>verified by rerun:</b><pre>{html.escape(f['fixed_code'])}</pre>"
+            elif f.get("fix_attempt"):
+                ev = (f"<b>rejected - rerun failed:</b><pre>{html.escape(f['fix_attempt'])}</pre>"
+                      f"<code>{html.escape((f.get('fix_error') or '')[:120])}</code>")
+            elif status == "stale_no_fix":
+                ev = "<i>model produced no parseable fix (generation/format outcome; nothing reran)</i>"
+            else:
+                ev = ""
             rows.append(f"<tr><td><code>{html.escape(f['file'])}#{f['index']}</code> (line {f['line']})</td>"
                         f"<td class='{status}'>{status.replace('_',' ')}</td>"
-                        f"<td><code>{html.escape((f.get('error') or '')[:120])}</code></td><td>{fix}</td></tr>")
+                        f"<td>{orig}</td>"
+                        f"<td><code>{html.escape((f.get('error') or '')[:120])}</code></td><td>{ev}</td></tr>")
         for f in repo.get("evaluated", repo.get("findings", [])):
             row(f, f.get("status", "ok"))
         for key, status in (("environment_failures", "environment"),
@@ -70,6 +83,9 @@ def render(report, title="DocDrift demo"):
             f"<h1>{html.escape(title)}</h1>"
             f"<p>DocDrift finds doc code snippets that no longer match the code, proposes fixes, and re-runs "
             f"each fix. Only fixes that pass the re-run are shown as verified.</p>"
+            f"<p><b>Scope:</b> {n_repos} synthetic seeded fixture repos, {n_exec} snippets executed. "
+            f"Fixtures exist to demonstrate the pipeline end to end; scores on them are not a measure "
+            f"of real-world performance. A real open-source-repo benchmark is separate future work.</p>"
             + provenance + "".join(rows) +
             f"<div class='card'><b>Model usage</b>: calls={t.get('calls')}, "
             f"prompt tokens={t.get('prompt')}, completion tokens={t.get('completion')}</div>"

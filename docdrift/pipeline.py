@@ -13,7 +13,10 @@ class Finding:
                            # so it says nothing about any model-produced fix.
     error: str = ""
     diagnosis: str = ""
-    fixed_code: str = ""
+    fixed_code: str = ""   # verified fix (only when its rerun passed)
+    code: str = ""         # original snippet as executed
+    fix_attempt: str = ""  # model fix that FAILED its rerun (stale_unfixed)
+    fix_error: str = ""    # that rerun's error - the rejection reason
 
 def repo_context(repo_dir, max_chars=800):
     """Grounding for the model: top-level layout plus dependency manifests."""
@@ -55,7 +58,7 @@ def scan_repo(repo_dir, runner, model, doc_globs=("README.md", "README.rst", "do
         all_results = [runner.run(s.code, repo_dir) for s in all_snippets]
     for s, r in zip(all_snippets, all_results):
         if r.ok:
-            findings.append(Finding(s.file, s.index, s.line, "ok"))
+            findings.append(Finding(s.file, s.index, s.line, "ok", code=s.code))
             continue
         diag = model.diagnose(s.code, r.stderr, ctx)
         fix = model.propose_fix(s.code, r.stderr, ctx)
@@ -63,11 +66,16 @@ def scan_repo(repo_dir, runner, model, doc_globs=("README.md", "README.rst", "do
             # No parseable/effective fix produced: record the generation/format
             # outcome distinctly. The original failure stands; nothing reran.
             findings.append(Finding(s.file, s.index, s.line,
-                "stale_no_fix", r.stderr.strip()[-200:], diag, ""))
+                "stale_no_fix", r.stderr.strip()[-200:], diag, "", code=s.code))
             continue
         v = runner.run(fix, repo_dir)
-        findings.append(Finding(s.file, s.index, s.line,
-            "stale_fixed" if v.ok else "stale_unfixed", r.stderr.strip()[-200:], diag, fix if v.ok else ""))
+        if v.ok:
+            findings.append(Finding(s.file, s.index, s.line,
+                "stale_fixed", r.stderr.strip()[-200:], diag, fix, code=s.code))
+        else:
+            findings.append(Finding(s.file, s.index, s.line,
+                "stale_unfixed", r.stderr.strip()[-200:], diag, "", code=s.code,
+                fix_attempt=fix, fix_error=(v.stderr or "").strip()[-200:]))
     return findings
 
 def to_dicts(fs):

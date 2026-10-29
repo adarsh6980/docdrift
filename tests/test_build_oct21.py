@@ -112,13 +112,13 @@ class TestBwrapRunner(unittest.TestCase):
 from docdrift.demo_page import render
 class TestDemoPage(unittest.TestCase):
     def test_render_has_findings_and_escapes(self):
-        rep = {"repos": [{"repo": "<b>x</b>", "findings": [
+        rep = {"repos": [{"repo": "evil<script>alert", "findings": [
             {"file": "README.md", "index": 0, "line": 3, "status": "stale_fixed",
              "error": "NameError", "diagnosis": "d", "fixed_code": "print(1)\n"}],
             "score": {"precision": 1.0, "recall": 1.0, "verified_fixed": 1, "stale_total": 1}}],
             "model_tokens": {"calls": 2, "prompt": 100, "completion": 50}}
         out = render(rep)
-        self.assertIn("&lt;b&gt;x&lt;/b&gt;", out)      # escaped, not injected
+        self.assertIn("evil&lt;script&gt;alert", out)  # escaped, not injected
         self.assertIn("stale fixed", out)
         self.assertIn("print(1)", out)
         self.assertIn("prompt tokens=100", out)
