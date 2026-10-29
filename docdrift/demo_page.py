@@ -21,11 +21,21 @@ def render(report, title="DocDrift demo"):
             rows.append(f"<p>precision {sc['precision']:.2f} - recall {sc['recall']:.2f} - "
                         f"verified fixes {sc['verified_fixed']} of {sc['stale_total']} stale</p>")
         rows.append("<table><tr><th>snippet</th><th>status</th><th>error</th><th>verified fix</th></tr>")
-        for f in repo["findings"]:
+        # New disjoint report schema: evaluated findings carry full detail; the
+        # environment/service/cascade lists carry brief entries and are shown
+        # under their classification, never as stale-doc candidates.
+        def row(f, status):
             fix = f"<pre>{html.escape(f['fixed_code'])}</pre>" if f.get("fixed_code") else ""
             rows.append(f"<tr><td><code>{html.escape(f['file'])}#{f['index']}</code> (line {f['line']})</td>"
-                        f"<td class='{f['status']}'>{f['status'].replace('_',' ')}</td>"
+                        f"<td class='{status}'>{status.replace('_',' ')}</td>"
                         f"<td><code>{html.escape((f.get('error') or '')[:120])}</code></td><td>{fix}</td></tr>")
+        for f in repo.get("evaluated", repo.get("findings", [])):
+            row(f, f.get("status", "ok"))
+        for key, status in (("environment_failures", "environment"),
+                            ("service_failures", "service"),
+                            ("cascade_failures", "cascade")):
+            for f in repo.get(key, []):
+                row(f, status)
         rows.append("</table>")
     t = report.get("model_tokens", {})
     return (f"<!doctype html><html><head><meta charset='utf-8'><title>{html.escape(title)}</title>"
