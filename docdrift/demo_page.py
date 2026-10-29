@@ -71,6 +71,12 @@ def render(report, title="DocDrift demo"):
                 row(f, status)
         rows.append("</table>")
     t = report.get("model_tokens", {})
+    # Optional honesty marker for reports assembled after the fact: a rendered
+    # page must say when its record is reconstructed rather than raw.
+    record_note = ""
+    if report.get("record_note"):
+        record_note = (f"<p style='color:#555;font-size:.85rem'><b>Record note:</b> "
+                       f"{html.escape(report['record_note'])}</p>")
     # Provenance is the recorded model execution in the report, never the
     # token fields: mock or supplied counts must not create live evidence.
     mp = report.get("model") or {}
@@ -106,7 +112,7 @@ def render(report, title="DocDrift demo"):
             f"<p><b>Scope:</b> {n_repos} synthetic seeded fixture repos, {n_exec} snippets executed. "
             f"Fixtures exist to demonstrate the pipeline end to end; scores on them are not a measure "
             f"of real-world performance. A real open-source-repo benchmark is separate future work.</p>"
-            + provenance + "".join(rows) +
+            + provenance + record_note + "".join(rows) +
             f"<div class='card'><b>Model usage</b>: calls={t.get('calls')}, "
             f"prompt tokens={t.get('prompt')}, completion tokens={t.get('completion')}</div>"
             f"<p><a href='https://github.com/adarsh6980/docdrift'>Source code</a> - {footer}</p></body></html>")
