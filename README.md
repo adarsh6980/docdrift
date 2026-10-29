@@ -28,7 +28,7 @@ Scope, stated plainly: this evidence covers small synthetic fixtures, not real o
 
 ## Status
 
-- 64 tests passing, public repo, MIT license
+- 65 tests passing, public repo, MIT license
 - Public demo page (above) rendered from the recorded live run
 - Next: a live benchmark on real open-source repos, and a GitHub Action that checks docs on every pull request
 
